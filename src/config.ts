@@ -1,3 +1,6 @@
+import { existsSync } from 'fs'
+import { resolve } from 'path'
+import { pathToFileURL } from 'url'
 import type { Provider } from './providers/types.js'
 import type { Tool } from './tools/types.js'
 import { MockProvider } from './providers/mock.js'
@@ -15,6 +18,15 @@ export type ShellAgentConfig = {
   maxTurns: number
 }
 
+/**
+ * Plugin config exported by a shellagent.config.ts file in the working directory.
+ * This allows projects to register custom tools and providers without modifying shellagent.
+ */
+export type PluginConfig = {
+  provider?: Provider
+  tools?: Tool[]
+}
+
 const defaultTools: Tool[] = [
   readFileTool,
   listFilesTool,
@@ -24,15 +36,50 @@ const defaultTools: Tool[] = [
   mockWeatherTool,
 ]
 
-export function loadConfig(overrides: Partial<ShellAgentConfig> = {}): ShellAgentConfig {
+const PLUGIN_FILENAMES = [
+  'shellagent.config.ts',
+  'shellagent.config.js',
+  'shellagent.config.mjs',
+]
+
+async function loadPluginConfig(cwd: string): Promise<PluginConfig> {
+  for (const filename of PLUGIN_FILENAMES) {
+    const configPath = resolve(cwd, filename)
+    if (existsSync(configPath)) {
+      try {
+        const mod = await import(pathToFileURL(configPath).href)
+        const plugin: PluginConfig = mod.default ?? mod
+        console.log(`Loaded plugin: ${filename}`)
+        return plugin
+      } catch (err: any) {
+        console.error(`Failed to load ${filename}: ${err.message}`)
+      }
+    }
+  }
+  return {}
+}
+
+export async function loadConfig(overrides: Partial<ShellAgentConfig> = {}): Promise<ShellAgentConfig> {
+  const cwd = overrides.cwd ?? process.cwd()
+
   // Register all default tools
   for (const tool of defaultTools) {
     registerTool(tool)
   }
 
+  // Load plugin config from cwd
+  const plugin = await loadPluginConfig(cwd)
+
+  // Register plugin tools
+  if (plugin.tools) {
+    for (const tool of plugin.tools) {
+      registerTool(tool)
+    }
+  }
+
   return {
-    provider: overrides.provider ?? new MockProvider(),
-    cwd: overrides.cwd ?? process.cwd(),
+    provider: plugin.provider ?? overrides.provider ?? new MockProvider(),
+    cwd,
     maxTurns: overrides.maxTurns ?? 10,
   }
 }
