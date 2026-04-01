@@ -31,6 +31,9 @@ export async function* executeTools(
     }
   }
 
+  // Enrich context with permission handler for subagent support
+  const enrichedCtx: ToolContext = { ...ctx, onPermissionRequest }
+
   // Run concurrent tools in parallel
   if (concurrent.length > 0) {
     const promises = concurrent.map(async (call) => {
@@ -38,7 +41,7 @@ export async function* executeTools(
       yield_start(call)
       try {
         const parsed = tool.inputSchema.parse(call.input)
-        const result = await tool.execute(parsed, ctx)
+        const result = await tool.execute(parsed, enrichedCtx)
         return { type: 'tool_end' as const, id: call.id, output: result.output, isError: result.isError ?? false }
       } catch (err: any) {
         return { type: 'tool_end' as const, id: call.id, output: `Error: ${err.message}`, isError: true }
@@ -72,7 +75,7 @@ export async function* executeTools(
 
     try {
       const parsed = tool.inputSchema.parse(call.input)
-      const result = await tool.execute(parsed, ctx)
+      const result = await tool.execute(parsed, enrichedCtx)
       yield { type: 'tool_end', id: call.id, output: result.output, isError: result.isError ?? false }
     } catch (err: any) {
       yield { type: 'tool_end', id: call.id, output: `Error: ${err.message}`, isError: true }

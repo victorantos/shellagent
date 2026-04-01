@@ -18,6 +18,16 @@ export class AnthropicProvider implements Provider {
     this.systemPrompt = options?.systemPrompt ?? ''
   }
 
+  /**
+   * Create a new provider instance with a different system prompt.
+   * Used by the subagent engine to inject agent-specific prompts.
+   */
+  withSystemPrompt(systemPrompt: string): AnthropicProvider {
+    const clone = new AnthropicProvider('', { model: this.model, systemPrompt })
+    clone.client = this.client // Reuse the same client instance
+    return clone
+  }
+
   async *chat(
     messages: Message[],
     tools: ToolDefinition[],

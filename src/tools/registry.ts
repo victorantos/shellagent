@@ -1,9 +1,10 @@
 import { z } from 'zod'
-import type { Tool, ToolResult, ToolContext } from './types.js'
+import type { Tool, ToolResult, ToolContext, AgentDefinition } from './types.js'
 import type { ToolDefinition } from '../providers/types.js'
 import zodToJsonSchema from 'zod-to-json-schema'
 
 const tools = new Map<string, Tool>()
+const agents = new Map<string, AgentDefinition>()
 
 export function registerTool(tool: Tool): void {
   tools.set(tool.name, tool)
@@ -24,6 +25,22 @@ export function getToolDefinitions(): ToolDefinition[] {
     inputSchema: zodToJsonSchema(t.inputSchema) as Record<string, unknown>,
   }))
 }
+
+// ── Agent registry ─────────────────────────────────────────────
+
+export function registerAgent(agent: AgentDefinition): void {
+  agents.set(agent.name, agent)
+}
+
+export function getAgent(name: string): AgentDefinition | undefined {
+  return agents.get(name)
+}
+
+export function getAllAgents(): AgentDefinition[] {
+  return Array.from(agents.values())
+}
+
+// ── Tool builder ───────────────────────────────────────────────
 
 export function buildTool<T extends z.ZodType>(def: {
   name: string

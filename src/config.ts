@@ -2,9 +2,9 @@ import { existsSync } from 'fs'
 import { resolve } from 'path'
 import { pathToFileURL } from 'url'
 import type { Provider } from './providers/types.js'
-import type { Tool } from './tools/types.js'
+import type { Tool, AgentDefinition } from './tools/types.js'
 import { MockProvider } from './providers/mock.js'
-import { registerTool, getAllTools } from './tools/registry.js'
+import { registerTool, registerAgent, getAllTools } from './tools/registry.js'
 import { readFileTool } from './tools/read-file.js'
 import { listFilesTool } from './tools/list-files.js'
 import { searchFilesTool } from './tools/search-files.js'
@@ -25,6 +25,7 @@ export type ShellAgentConfig = {
 export type PluginConfig = {
   provider?: Provider
   tools?: Tool[]
+  agents?: AgentDefinition[]
 }
 
 const defaultTools: Tool[] = [
@@ -77,8 +78,23 @@ export async function loadConfig(overrides: Partial<ShellAgentConfig> = {}): Pro
     }
   }
 
+  // Register plugin agents
+  if (plugin.agents) {
+    for (const agent of plugin.agents) {
+      registerAgent(agent)
+    }
+  }
+
+  const provider = plugin.provider ?? overrides.provider ?? new MockProvider()
+
+  // Register the Agent tool if any agents are defined
+  if (plugin.agents && plugin.agents.length > 0) {
+    const { createAgentTool } = await import('./tools/agent.js')
+    registerTool(createAgentTool(provider))
+  }
+
   return {
-    provider: plugin.provider ?? overrides.provider ?? new MockProvider(),
+    provider,
     cwd,
     maxTurns: overrides.maxTurns ?? 10,
   }
