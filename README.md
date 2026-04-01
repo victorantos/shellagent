@@ -4,6 +4,8 @@ An open-source interactive terminal inspired by [Claude Code CLI](https://docs.a
 
 Ships with a mock provider for demo. Bring your own API for production.
 
+![ShellAgent demo](assets/screenshot.png)
+
 ## Quick Start
 
 ```bash
